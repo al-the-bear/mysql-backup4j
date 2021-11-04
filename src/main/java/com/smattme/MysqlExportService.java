@@ -8,6 +8,7 @@ import org.zeroturnaround.zip.ZipUtil;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -198,6 +199,7 @@ public class MysqlExportService {
      */
     private String getDataInsertStatement(String table) throws SQLException {
 
+
         StringBuilder sql = new StringBuilder();
 
         ResultSet rs = stmt.executeQuery("SELECT * FROM " + "`" + table + "`;");
@@ -248,10 +250,13 @@ public class MysqlExportService {
 
                 //this is the part where the values are processed based on their type
                 if(Objects.isNull(rs.getObject(columnIndex))) {
-                    sql.append("").append(rs.getObject(columnIndex)).append(", ");
+                    sql.append(rs.getObject(columnIndex)).append(", ");
                 }
                 else if( columnType == Types.INTEGER || columnType == Types.TINYINT || columnType == Types.BIT) {
                     sql.append(rs.getInt(columnIndex)).append(", ");
+                }
+                else if( columnType == Types.BLOB || columnType == Types.BINARY || columnType == Types.VARBINARY || columnType == Types.LONGVARBINARY ) {
+                    sql.append( "_binary 0x").append(bytesToHex(rs.getBytes(columnIndex))).append(", ");
                 }
                 else {
 
@@ -291,6 +296,106 @@ public class MysqlExportService {
         return sql.toString();
     }
 
+    /**
+     * This function will generate the insert statements needed
+     * to recreate the table under processing.
+     * @param table the table to get inserts statement for
+     * @return String generated SQL insert
+     * @throws SQLException exception
+     */
+    private String getDataInsertStatementSingleInserts(String table) throws SQLException {
+
+
+        StringBuilder sql = new StringBuilder();
+
+        ResultSet rs = stmt.executeQuery("SELECT * FROM " + "`" + table + "`;");
+
+        //move to the last row to get max rows returned
+        rs.last();
+        int rowCount = rs.getRow();
+
+        //there are no records just return empty string
+        if(rowCount <= 0) {
+            return sql.toString();
+        }
+
+        sql.append("\n--").append("\n-- Inserts for ").append(table).append("\n--\n\n");
+
+        //temporarily disable foreign key constraint
+        sql.append("\n/*!40000 ALTER TABLE `").append(table).append("` DISABLE KEYS */;\n");
+
+        StringBuilder ip = new StringBuilder();
+
+        ip.append("INSERT INTO `").append(table).append("`(");
+
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+
+        //generate the column names that are present
+        //in the returned result set
+        //at this point the insert is INSERT INTO (`col1`, `col2`, ...)
+        for(int i = 0; i < columnCount; i++) {
+            ip.append("`")
+                    .append(metaData.getColumnName( i + 1))
+                    .append("`, ");
+        }
+
+        //remove the last whitespace and comma
+        ip.deleteCharAt(ip.length() - 1).deleteCharAt(ip.length() - 1).append(") VALUES \n");
+
+        //now we're going to build the values for data insertion
+        rs.beforeFirst();
+        while(rs.next()) {
+            sql.append("\n").append(MysqlBaseService.SQL_START_PATTERN).append("\n").append(ip).append("(");
+            for(int i = 0; i < columnCount; i++) {
+
+                int columnType = metaData.getColumnType(i + 1);
+                int columnIndex = i + 1;
+
+                //this is the part where the values are processed based on their type
+                if(Objects.isNull(rs.getObject(columnIndex))) {
+                    sql.append(rs.getObject(columnIndex)).append(", ");
+                }
+                else if( columnType == Types.INTEGER || columnType == Types.TINYINT || columnType == Types.BIT) {
+                    sql.append(rs.getInt(columnIndex)).append(", ");
+                }
+                else if( columnType == Types.BLOB || columnType == Types.BINARY || columnType == Types.VARBINARY || columnType == Types.LONGVARBINARY ) {
+                    sql.append( "_binary 0x").append(bytesToHex(rs.getBytes(columnIndex))).append(", ");
+                }
+                else {
+
+                    String val = rs.getString(columnIndex);
+                    //escape the single quotes that might be in the value
+                    val = val.replace("\\","\\\\");
+                    val = val.replace("'", "\\'");
+
+                    sql.append("'").append(val).append("', ");
+                }
+            }
+
+            //now that we're done with a row
+            //let's remove the last whitespace and comma
+            sql.deleteCharAt(sql.length() - 1).deleteCharAt(sql.length() - 1);
+
+            sql.append(");\n").append(MysqlBaseService.SQL_END_PATTERN);
+        }
+
+        //enable FK constraint
+        sql.append("\n\n/*!40000 ALTER TABLE `").append(table).append("` ENABLE KEYS */;\n");
+
+        return sql.toString();
+    }
+
+    private static final byte[] HEX_ARRAY = "0123456789abcdef".getBytes(StandardCharsets.US_ASCII);
+    public static String bytesToHex(byte[] bytes) {
+        byte[] hexChars = new byte[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars, StandardCharsets.UTF_8);
+    }
 
     /**
      * This is the entry function that'll
@@ -327,7 +432,7 @@ public class MysqlExportService {
         for (String s: tables) {
             try {
                 sql.append(getTableInsertStatement(s.trim()));
-                sql.append(getDataInsertStatement(s.trim()));
+                sql.append(getDataInsertStatementSingleInserts(s.trim()));
             } catch (SQLException e) {
                 logger.error("Exception occurred while processing table: " + s, e);
             }

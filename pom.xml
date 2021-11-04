@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.smattme</groupId>
+    <groupId>sl.tomahawk</groupId>
     <artifactId>mysql-backup4j</artifactId>
     <version>1.2.1</version>
     <packaging>jar</packaging>
@@ -31,12 +31,6 @@
             <organizationUrl>https://smattme.com</organizationUrl>
         </developer>
     </developers>
-
-    <scm>
-        <connection>scm:git:git://github.com/SeunMatt/mysql-backup4j.git</connection>
-        <developerConnection>scm:git:ssh://github.com:SeunMatt/mysql-backup4j.git</developerConnection>
-        <url>https://github.com/SeunMatt/mysql-backup4j/tree/master</url>
-    </scm>
 
     <dependencies>
         <dependency>
@@ -98,16 +92,6 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M5</version>
-                <configuration>
-                    <includes>
-                        <include>com.smattme.MysqlBackup4JIntegrationTest</include>
-                    </includes>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.2.0</version>
                 <executions>
@@ -115,33 +99,6 @@
                         <id>attach-javadocs</id>
                         <goals>
                             <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>3.0.1</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>1.6</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
                         </goals>
                     </execution>
                 </executions>
