@@ -360,7 +360,12 @@ public class MysqlExportService {
                     sql.append(rs.getInt(columnIndex)).append(", ");
                 }
                 else if( columnType == Types.BLOB || columnType == Types.BINARY || columnType == Types.VARBINARY || columnType == Types.LONGVARBINARY ) {
-                    sql.append( "_binary 0x").append(bytesToHex(rs.getBytes(columnIndex))).append(", ");
+                    byte[] value = rs.getBytes(columnIndex);
+                    if( rs.wasNull() ) {
+                        sql.append("NULL, ");
+                    }else {
+                        sql.append("_binary 0x").append(bytesToHex(value)).append(", ");
+                    }
                 }
                 else {
 
